@@ -1,0 +1,28 @@
+[package]
+name = "universal-inserter"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "A runtime-agnostic batch inserter library implementing the ClickHouse Inserter pattern"
+license = "MIT"
+repository = "https://github.com/user/universal-inserter"
+keywords = ["async", "batch", "inserter", "buffer"]
+categories = ["asynchronous", "data-structures"]
+
+[dependencies]
+rand = { version = "0.9.2", optional = true }
+
+[dev-dependencies]
+pollster = "0.4"
+
+[features]
+default = []
+period_bias = ["rand"]
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"
+nursery = "warn"
