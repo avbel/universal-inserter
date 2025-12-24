@@ -76,8 +76,8 @@ impl Ticks {
         }
 
         use rand::Rng;
-        let mut rng = rand::thread_rng();
-        let factor = 1.0 + rng.gen_range(-self.bias..=self.bias);
+        let mut rng = rand::rng();
+        let factor = 1.0 + rng.random_range(-self.bias..=self.bias);
         Duration::from_secs_f64(period.as_secs_f64() * factor)
     }
 
