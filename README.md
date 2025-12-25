@@ -101,6 +101,78 @@ if let Some(time_left) = inserter.time_left() {
 }
 ```
 
+### Sharing Between Threads
+
+To share an inserter across multiple threads/tasks, wrap it in `Arc<Mutex<...>>`:
+
+```rust
+use universal_inserter::Inserter;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::Mutex;
+
+#[derive(Clone)]
+struct MyRow {
+    id: u64,
+    data: String,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create inserter wrapped in Arc<Mutex>
+    let inserter = Arc::new(Mutex::new(
+        Inserter::new(|batch: Vec<MyRow>| async move {
+            println!("Inserting {} rows", batch.len());
+            // Your async insert logic here
+            Ok::<_, std::io::Error>(())
+        })
+        .with_max_rows(100)
+        .with_period(Duration::from_secs(1))
+    ));
+
+    // Spawn multiple tasks that share the inserter
+    let mut handles = vec![];
+
+    for task_id in 0..5 {
+        let inserter_clone = Arc::clone(&inserter);
+
+        let handle = tokio::spawn(async move {
+            for i in 0..50 {
+                let row = MyRow {
+                    id: task_id * 1000 + i,
+                    data: format!("task_{}_row_{}", task_id, i),
+                };
+
+                let mut inserter = inserter_clone.lock().await;
+                inserter.write(&row);
+                inserter.commit().await.unwrap();
+            }
+        });
+
+        handles.push(handle);
+    }
+
+    // Wait for all tasks to complete
+    for handle in handles {
+        handle.await?;
+    }
+
+    // Final flush
+    let stats = {
+        let inserter = Arc::try_unwrap(inserter)
+            .expect("All tasks should be done")
+            .into_inner();
+        inserter.end().await?
+    };
+
+    println!("Total: {} rows, {} transactions", stats.rows, stats.transactions);
+
+    Ok(())
+}
+```
+
+**Note**: Use `tokio::sync::Mutex` (not `std::sync::Mutex`) to avoid blocking async tasks.
+
 ## API
 
 ### Inserter Methods
